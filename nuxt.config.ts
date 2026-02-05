@@ -15,11 +15,7 @@ export default defineNuxtConfig({
         build: {
             sourcemap: false,
         },
-        server: {
-            // Adicione isso para o Vite dev server
-            port: 3001,
-            strictPort: true,
-        },
+
     },
     
     // Adicione isso! 👇
@@ -28,9 +24,10 @@ export default defineNuxtConfig({
         host: 'localhost',
     },
     
-    // @ts-expect-error Nuxt 4 types not fully stable
+
+    // @ts-ignore
     nitro: {
-        preset: "netlify",
+        // preset: "netlify",
         devServer: {
             watch: [],
         },
