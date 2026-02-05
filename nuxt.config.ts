@@ -27,7 +27,7 @@ export default defineNuxtConfig({
 
     // @ts-ignore
     nitro: {
-        // preset: "netlify",
+        // preset: "vercel",
         devServer: {
             watch: [],
         },
