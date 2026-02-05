@@ -1,6 +1,6 @@
 import { defineEventHandler } from 'h3'
-import { generateApiToken } from '../../utils/apiTokens'
-import { validateOrigin } from '../../utils/validateOrigin'
+import { generateApiToken } from '../utils/apiTokens'
+import { validateOrigin } from '../utils/validateOrigin'
 
 export default defineEventHandler(async (event) => {
   const result: any = {
