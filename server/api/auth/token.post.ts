@@ -2,7 +2,7 @@ interface AuthTokenRequestBody {
   endpoint: string
 }
 
-import { defineEventHandler, readBody, createError } from 'h3'
+import { defineEventHandler, readBody, createError, setResponseStatus } from 'h3'
 import { validateOrigin, setCorsHeaders } from '../../utils/validateOrigin'
 import { generateApiToken } from '../../utils/apiTokens'
 
@@ -162,10 +162,12 @@ export default defineEventHandler(async (event) => {
         console.error('Error in /api/auth/token:', error)
         console.error('Stack:', error.stack)
         
-        throw createError({
-            statusCode: error.statusCode || 500,
-            statusMessage: error.statusMessage || 'Internal Server Error',
-            message: error.message
-        })
+        setResponseStatus(event, 500)
+        return {
+            error: true,
+            message: error.message,
+            stack: error.stack,
+            type: error.constructor.name
+        }
     }
 })
