@@ -8,11 +8,10 @@ import { generateApiToken } from '../../utils/apiTokens'
 
 export default defineEventHandler(async (event) => {
     
-    validateOrigin(event)
-
-    setCorsHeaders(event)
-
     try {
+        validateOrigin(event)
+        setCorsHeaders(event)
+
         let body: AuthTokenRequestBody
     
     console.log('=== Auth Token Request Debug ===')
@@ -162,9 +161,11 @@ export default defineEventHandler(async (event) => {
         console.error('Error in /api/auth/token:', error)
         console.error('Stack:', error.stack)
         
-        setResponseStatus(event, 500)
+        const statusCode = error.statusCode || 500
+        setResponseStatus(event, statusCode)
         return {
             error: true,
+            statusCode,
             message: error.message,
             stack: error.stack,
             type: error.constructor.name
