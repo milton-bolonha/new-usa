@@ -29,8 +29,11 @@ export function useApiToken() {
       tokenCache.set(endpoint, cachedToken);
 
       return response.token;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to get API token:', error);
+      if (error.data) {
+        console.error('API Token Error Data:', error.data);
+      }
       throw error;
     }
   };
