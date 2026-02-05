@@ -36,14 +36,22 @@ export function validateOrigin(event: H3Event) {
     if (allowedOrigins.length === 0) {
 
         if (origin) {
-            const host = headers?.host
-            const originUrl = new URL(origin)
-            const requestHost = originUrl.host
+            try {
+                const host = headers?.host
+                const originUrl = new URL(origin)
+                const requestHost = originUrl.host
 
-            if (requestHost !== host) {
-                throw createError({
+                if (requestHost !== host) {
+                    throw createError({
+                        status: 403,
+                        statusText: 'Cross-origin requests not allowed'
+                    })
+                }
+            } catch (e) {
+                // If URL parsing fails, request is likely malformed or malicious
+                 throw createError({
                     status: 403,
-                    statusText: 'Cross-origin requests not allowed'
+                    statusText: 'Invalid origin header'
                 })
             }
         }

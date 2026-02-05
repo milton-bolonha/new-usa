@@ -12,7 +12,8 @@ export default defineEventHandler(async (event) => {
 
     setCorsHeaders(event)
 
-    let body: AuthTokenRequestBody
+    try {
+        let body: AuthTokenRequestBody
     
     console.log('=== Auth Token Request Debug ===')
     console.log('Headers:', event.node?.req?.headers)
@@ -156,5 +157,15 @@ export default defineEventHandler(async (event) => {
     return {
         token,
         expiresIn: '5 minutes'
+    }
+    } catch (error: any) {
+        console.error('Error in /api/auth/token:', error)
+        console.error('Stack:', error.stack)
+        
+        throw createError({
+            statusCode: error.statusCode || 500,
+            statusMessage: error.statusMessage || 'Internal Server Error',
+            message: error.message
+        })
     }
 })
