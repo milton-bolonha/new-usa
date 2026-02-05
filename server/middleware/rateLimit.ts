@@ -1,7 +1,7 @@
 import { defaultRateLimiter, strictRateLimiter } from '../utils/rateLimit';
-import { eventHandler, getRequestURL } from 'h3';
+import { defineEventHandler, getRequestURL } from 'h3';
 
-export default eventHandler(async (event) => {
+export default defineEventHandler(async (event) => {
   try {
     let url;
     try {
