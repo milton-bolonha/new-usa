@@ -35,13 +35,23 @@ class RateLimiter {
     }
 
     private defaultKeyGenerator(event: any): string {
-        const headers = event.node?.req?.headers;
-        return (
-            headers?.["x-forwarded-for"]?.toString().split(",")[0]?.trim() ||
-            headers?.["x-real-ip"]?.toString() ||
-            event.node.req.socket?.remoteAddress ||
-            "unknown"
-        );
+        try {
+            // Try to use h3 helpers first if available, or safe fallback
+            const xForwardedFor = getHeaders(event)['x-forwarded-for'];
+            const xRealIp = getHeaders(event)['x-real-ip'];
+             
+            if (xForwardedFor) {
+                return xForwardedFor.toString().split(',')[0].trim();
+            }
+            
+            if (xRealIp) {
+                return xRealIp.toString();
+            }
+
+            return event.node?.req?.socket?.remoteAddress || 'unknown';
+        } catch (e) {
+            return 'unknown';
+        }
     }
 
     private cleanup(): void {
