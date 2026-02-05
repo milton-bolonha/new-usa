@@ -1,5 +1,5 @@
 import { defineEventHandler } from 'h3'
-import { generateApiToken } from '../utils/apiTokens'
+// import { generateApiToken } from '../utils/apiTokens'
 import { validateOrigin } from '../utils/validateOrigin'
 
 export default defineEventHandler(async (event) => {
@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
       result.steps.push('validateOrigin check failed: ' + e.message)
     }
 
+    /*
     // 2. Test apiTokens import
     try {
       if (typeof generateApiToken === 'function') {
@@ -39,6 +40,7 @@ export default defineEventHandler(async (event) => {
       // Return immediately if this fails, as it's likely the cause
       return { ...result, error: e.message, stack: e.stack }
     }
+    */
 
     result.success = true
     return result
