@@ -31,32 +31,21 @@ class RateLimiter {
         this.skipSuccessfulRequests = config.skipSuccessfulRequests || false;
         this.keyGenerator = config.keyGenerator || this.defaultKeyGenerator;
 
-        this.keyGenerator = config.keyGenerator || this.defaultKeyGenerator;
+        setInterval(() => this.cleanup(), 60000);
     }
 
     private defaultKeyGenerator(event: any): string {
-        try {
-            // Try to use h3 helpers first if available, or safe fallback
-            const xForwardedFor = getHeaders(event)['x-forwarded-for'];
-            const xRealIp = getHeaders(event)['x-real-ip'];
-             
-            if (xForwardedFor) {
-                return xForwardedFor.toString().split(',')[0].trim();
-            }
-            
-            if (xRealIp) {
-                return xRealIp.toString();
-            }
-
-            return event.node?.req?.socket?.remoteAddress || 'unknown';
-        } catch (e) {
-            return 'unknown';
-        }
+        const headers = event.node?.req?.headers;
+        return (
+            headers?.["x-forwarded-for"]?.toString().split(",")[0]?.trim() ||
+            headers?.["x-real-ip"]?.toString() ||
+            event.node.req.socket?.remoteAddress ||
+            "unknown"
+        );
     }
 
     private cleanup(): void {
         const now = Date.now();
-        // Simple lazy cleanup on write, or strict cleanup
         Object.keys(this.store).forEach((key) => {
             if ((this.store[key]?.resetTime as number) < now) {
                 delete this.store[key];
@@ -72,11 +61,6 @@ class RateLimiter {
         retryAfter?: number;
         message?: string;
     }> {
-        // Lazy cleanup before checking
-        if (Object.keys(this.store).length > 1000) {
-             this.cleanup();
-        }
-
         const key = this.keyGenerator(event);
         const now = Date.now();
 

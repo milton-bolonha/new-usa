@@ -2,17 +2,17 @@ interface AuthTokenRequestBody {
   endpoint: string
 }
 
-import { defineEventHandler, readBody, createError, setResponseStatus } from 'h3'
+import { defineEventHandler, readBody, createError } from 'h3'
 import { validateOrigin, setCorsHeaders } from '../../utils/validateOrigin'
 import { generateApiToken } from '../../utils/apiTokens'
 
 export default defineEventHandler(async (event) => {
     
-    try {
-        validateOrigin(event)
-        setCorsHeaders(event)
+    validateOrigin(event)
 
-        let body: AuthTokenRequestBody
+    setCorsHeaders(event)
+
+    let body: AuthTokenRequestBody
     
     console.log('=== Auth Token Request Debug ===')
     console.log('Headers:', event.node?.req?.headers)
@@ -129,6 +129,7 @@ export default defineEventHandler(async (event) => {
         'courts/15',
         'courts/16',
         'courts/17',
+        'district-court',
         'federal-rules/frcp',
         'federal-rules/frcmp',
         'laws/federal',
@@ -156,19 +157,5 @@ export default defineEventHandler(async (event) => {
     return {
         token,
         expiresIn: '5 minutes'
-    }
-    } catch (error: any) {
-        console.error('Error in /api/auth/token:', error)
-        console.error('Stack:', error.stack)
-        
-        const statusCode = error.statusCode || 500
-        setResponseStatus(event, statusCode)
-        return {
-            error: true,
-            statusCode,
-            message: error.message,
-            stack: error.stack,
-            type: error.constructor.name
-        }
     }
 })

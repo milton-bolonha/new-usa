@@ -1,7 +1,7 @@
 import { defaultRateLimiter, strictRateLimiter } from '../utils/rateLimit';
-import { defineEventHandler, getRequestURL } from 'h3';
+import { eventHandler, getRequestURL } from 'h3';
 
-export default defineEventHandler(async (event) => {
+export default eventHandler(async (event) => {
   try {
     let url;
     try {
@@ -14,7 +14,6 @@ export default defineEventHandler(async (event) => {
 
     const skipPaths = [
       '/api/health',
-      '/api/debug-auth',
       '/_nuxt',
       '/favicon.ico',
       '/robots.txt',

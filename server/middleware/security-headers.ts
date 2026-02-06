@@ -1,6 +1,6 @@
-import { defineEventHandler } from 'h3';
+import { eventHandler } from 'h3';
 
-export default defineEventHandler((event) => {
+export default eventHandler((event) => {
   try {
     const headers = event.node?.res?.getHeaders() || {};
 

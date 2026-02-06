@@ -4,30 +4,18 @@ import { defineNuxtConfig } from "nuxt/config";
 export default defineNuxtConfig({
     compatibilityDate: "2025-07-15",
     devtools: { enabled: true },
-    
     modules: ["@pinia/nuxt", "@nuxtjs/i18n"],
-    
     srcDir: "app/",
     css: ["~/assets/css/main.css"],
-    
     vite: {
         plugins: [tailwindcss()],
         build: {
             sourcemap: false,
         },
-
     },
-    
-    // Adicione isso! 👇
-    devServer: {
-        port: 3001,
-        host: 'localhost',
-    },
-    
-
-    // @ts-ignore
+    // @ts-expect-error Nuxt 4 types not fully stable
     nitro: {
-        // preset: "vercel",
+        preset: "netlify",
         devServer: {
             watch: [],
         },
@@ -37,20 +25,10 @@ export default defineNuxtConfig({
                 dir: "prisma",
             },
         ],
-        // Adicione essas configurações para desenvolvimento local
-        devProxy: {
-            '/api': {
-                target: 'http://localhost:3001',
-                changeOrigin: true,
-                secure: false,
-            }
-        },
     },
-    
     typescript: {
         strict: false,
     },
-    
     app: {
         head: {
             meta: [
@@ -71,7 +49,6 @@ export default defineNuxtConfig({
             ],
         },
     },
-    
     runtimeConfig: {
         tokenSecret: process.env.TOKEN_SECRET || "",
         tokenExpiry: process.env.TOKEN_EXPIRY || "5",
@@ -86,6 +63,7 @@ export default defineNuxtConfig({
         public: {
             isShutdown: false,
             shutdownPage: "/shutdown",
+            statusAdminKey: process.env.STATUS_ADMIN_KEY || "",
             sentryDsn: process.env.NUXT_PUBLIC_SENTRY_DSN || "",
             environment:
                 process.env.NUXT_PUBLIC_ENVIRONMENT ||
