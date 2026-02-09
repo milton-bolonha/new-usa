@@ -1,7 +1,7 @@
 import { defaultRateLimiter, strictRateLimiter } from '../utils/rateLimit';
-import { eventHandler, getRequestURL } from 'h3';
+import { defineEventHandler, getRequestURL } from 'h3';
 
-export default eventHandler(async (event) => {
+export default defineEventHandler(async (event) => {
   try {
     let url;
     try {
@@ -10,6 +10,7 @@ export default eventHandler(async (event) => {
       url = { pathname: event.node?.req?.url || '/' };
     }
     
+    // Fallback for path compatibility
     const path = url?.pathname || event.node?.req?.url || '/';
 
     const skipPaths = [
@@ -33,5 +34,6 @@ export default eventHandler(async (event) => {
     }
   } catch (error) {
     console.error('Rate limiting middleware error:', error);
+    // Do not crash the server on rate limit error, just log it
   }
 });
