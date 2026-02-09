@@ -16,7 +16,7 @@ functions = ".netlify/functions-internal/server"
 
 [build.environment]
 # Node version for build
-NODE_VERSION = "24"
+NODE_VERSION = "22"
 
 # Enable Node.js modules
 NODE_OPTIONS = "--max-old-space-size=4096"
