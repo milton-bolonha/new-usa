@@ -15,6 +15,8 @@ export default defineEventHandler(async (event) => {
 
     const skipPaths = [
       '/api/health',
+      '/api/debug-auth',
+      '/api/debug-env',
       '/_nuxt',
       '/favicon.ico',
       '/robots.txt',
