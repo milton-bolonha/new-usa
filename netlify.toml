@@ -12,7 +12,7 @@ command = """
 publish = "dist"
 
 # Functions directory for Nuxt server routes (production only)
-functions = ".netlify/functions-internal/server"
+functions = "netlify/functions/"
 
 [build.environment]
 # Node version for build
