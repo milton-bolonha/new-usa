@@ -342,16 +342,7 @@ const closeDistrictCaseModal = () => {
 const fetchDistrictCases = async () => {
     loadingDistrict.value = true
     try {
-        const tokenResponse = await $fetch<{ token: string; expiresIn: string }>('/api/auth/token', {
-            method: 'POST',
-            body: { endpoint: 'district-court' }
-        })
-        
-        districtCases.value = await $fetch('/api/district-court', {
-            headers: {
-                Authorization: `Bearer ${tokenResponse.token}`
-            }
-        })
+        districtCases.value = await $fetch('/api/district-court')
     } catch (error) {
         console.error('Error fetching district court cases:', error)
     } finally {

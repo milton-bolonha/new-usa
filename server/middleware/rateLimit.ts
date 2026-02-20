@@ -1,7 +1,7 @@
 import { defaultRateLimiter, strictRateLimiter } from '../utils/rateLimit';
-import { defineEventHandler, getRequestURL } from 'h3';
+import { eventHandler, getRequestURL } from 'h3';
 
-export default defineEventHandler(async (event) => {
+export default eventHandler(async (event) => {
   try {
     let url;
     try {
@@ -10,13 +10,10 @@ export default defineEventHandler(async (event) => {
       url = { pathname: event.node?.req?.url || '/' };
     }
     
-    // Fallback for path compatibility
     const path = url?.pathname || event.node?.req?.url || '/';
 
     const skipPaths = [
       '/api/health',
-      '/api/debug-auth',
-      '/api/debug-env',
       '/_nuxt',
       '/favicon.ico',
       '/robots.txt',
@@ -36,6 +33,5 @@ export default defineEventHandler(async (event) => {
     }
   } catch (error) {
     console.error('Rate limiting middleware error:', error);
-    // Do not crash the server on rate limit error, just log it
   }
 });

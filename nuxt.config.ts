@@ -4,17 +4,18 @@ import { defineNuxtConfig } from "nuxt/config";
 export default defineNuxtConfig({
     compatibilityDate: "2025-07-15",
     devtools: { enabled: true },
-    modules: ["@pinia/nuxt", "@nuxtjs/i18n", "@netlify/nuxt"],
+    modules: ["@pinia/nuxt", "@nuxtjs/i18n"],
     srcDir: "app/",
     css: ["~/assets/css/main.css"],
     vite: {
-        plugins: [tailwindcss() as any],
+        plugins: [tailwindcss()],
         build: {
             sourcemap: false,
         },
     },
     // @ts-expect-error Nuxt 4 types not fully stable
     nitro: {
+        preset: "netlify",
         devServer: {
             watch: [],
         },
@@ -62,6 +63,7 @@ export default defineNuxtConfig({
         public: {
             isShutdown: false,
             shutdownPage: "/shutdown",
+            statusAdminKey: process.env.STATUS_ADMIN_KEY || "",
             sentryDsn: process.env.NUXT_PUBLIC_SENTRY_DSN || "",
             environment:
                 process.env.NUXT_PUBLIC_ENVIRONMENT ||

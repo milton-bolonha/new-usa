@@ -11,9 +11,12 @@ command = """
 # Publish directory (Nuxt outputs to .output/public)
 publish = "dist"
 
+# Functions directory for Nuxt server routes (production only)
+functions = ".netlify/functions-internal/server"
+
 [build.environment]
 # Node version for build
-NODE_VERSION = "22"
+NODE_VERSION = "24"
 
 # Enable Node.js modules
 NODE_OPTIONS = "--max-old-space-size=4096"
@@ -26,6 +29,15 @@ DATABASE_URL = "file:./prisma/dev.db"
 port = 8888
 targetPort = 3001
 autoLaunch = false
+
+# Explicit API redirect for Netlify Dev proxy
+[[redirects]]
+from = "/api/*"
+to = "http://localhost:3001/api/:splat"
+status = 200
+[redirects.headers]
+X-Forwarded-Host = "localhost:8888"
+X-Forwarded-Proto = "http"
 
 # Headers for security and performance
 [[headers]]
