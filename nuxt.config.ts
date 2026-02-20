@@ -8,7 +8,7 @@ export default defineNuxtConfig({
     srcDir: "app/",
     css: ["~/assets/css/main.css"],
     vite: {
-        plugins: [tailwindcss()],
+        plugins: [tailwindcss() as any],
         build: {
             sourcemap: false,
         },

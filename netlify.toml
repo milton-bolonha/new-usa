@@ -27,15 +27,6 @@ port = 8888
 targetPort = 3001
 autoLaunch = false
 
-# Explicit API redirect for Netlify Dev proxy
-[[redirects]]
-from = "/api/*"
-to = "http://localhost:3001/api/:splat"
-status = 200
-[redirects.headers]
-X-Forwarded-Host = "localhost:8888"
-X-Forwarded-Proto = "http"
-
 # Headers for security and performance
 [[headers]]
 for = "/*"

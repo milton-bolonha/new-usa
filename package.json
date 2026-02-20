@@ -37,7 +37,6 @@
         "dotenv": "^17.2.3",
         "esbuild": "0.27.2",
         "googleapis": "^144.0.0",
-        "lucide-vue-next": "^0.563.0",
         "noblox.js": "^6.2.0",
         "nuxt": "^4.2.2",
         "openai": "^6.16.0",
