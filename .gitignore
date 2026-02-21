@@ -5,7 +5,7 @@
 .nitro
 .cache
 dist
-
+deno.lock
 # PDF text extraction
 /bills
 /scripts/extract-bills-text.js

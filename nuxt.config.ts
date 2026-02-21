@@ -4,7 +4,7 @@ import { defineNuxtConfig } from "nuxt/config";
 export default defineNuxtConfig({
     compatibilityDate: "2025-07-15",
     devtools: { enabled: true },
-    modules: ["@pinia/nuxt", "@nuxtjs/i18n"],
+    modules: ["@pinia/nuxt", "@nuxtjs/i18n", "@netlify/nuxt"],
     srcDir: "app/",
     css: ["~/assets/css/main.css"],
     vite: {
