@@ -1,5 +1,5 @@
 interface AuthTokenRequestBody {
-  endpoint: string
+    endpoint: string
 }
 
 import { defineEventHandler, readBody, createError } from 'h3'
@@ -7,42 +7,42 @@ import { validateOrigin, setCorsHeaders } from '../../utils/validateOrigin'
 import { generateApiToken } from '../../utils/apiTokens'
 
 export default defineEventHandler(async (event) => {
-    
+
     validateOrigin(event)
 
     setCorsHeaders(event)
 
     let body: AuthTokenRequestBody
-    
+
     console.log('=== Auth Token Request Debug ===')
     console.log('Headers:', event.node?.req?.headers)
     console.log('Method:', event.node?.req?.method)
     console.log('URL:', event.node?.req?.url)
-    
+
     try {
         console.log('Attempting to read body directly...')
         const req = event.node?.req as any
         console.log('Request object exists:', !!req)
         console.log('Request body type:', typeof req?.body)
         console.log('Request body:', req?.body)
-        
+
         body = undefined
-        
+
         if (process.env.NODE_ENV === 'production') {
             console.log('Production environment, using Netlify functions parsing...')
-            
+
             if (req && req.body && typeof req.body.getReader === 'function') {
                 console.log('Detected Netlify ReadableStream, reading manually...')
                 const reader = req.body.getReader()
                 const decoder = new TextDecoder()
                 let result = ''
-                
+
                 while (true) {
                     const { done, value } = await reader.read()
                     if (done) break
                     result += decoder.decode(value, { stream: true })
                 }
-                
+
                 console.log('Stream result:', result)
                 body = JSON.parse(result) as AuthTokenRequestBody
             } else if (req && req.body) {
@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
                 throw new Error('No valid body found in Netlify functions')
             }
         }
-        
+
         else {
             console.log('Local development, trying readBody...')
             try {
@@ -67,7 +67,7 @@ export default defineEventHandler(async (event) => {
                 console.log('readBody succeeded:', body)
             } catch (readBodyError) {
                 console.log('readBody failed, using fallback:', readBodyError.message)
-                
+
                 if (req && req.body) {
                     if (typeof req.body === 'string') {
                         body = JSON.parse(req.body) as AuthTokenRequestBody
@@ -87,11 +87,11 @@ export default defineEventHandler(async (event) => {
                 }
             }
         }
-        
+
         console.log('Final parsed body:', body)
         console.log('Body type:', typeof body)
         console.log('Body has endpoint:', body?.endpoint)
-        
+
     } catch (error: any) {
         console.log('All parsing methods failed:', error.message)
         console.log('Error stack:', error.stack)
@@ -100,7 +100,7 @@ export default defineEventHandler(async (event) => {
             statusText: 'Invalid JSON in request body'
         })
     }
-    
+
     const { endpoint } = body
 
     if (!endpoint) {
@@ -129,6 +129,7 @@ export default defineEventHandler(async (event) => {
         'courts/15',
         'courts/16',
         'courts/17',
+        'district-court',
         'federal-rules/frcp',
         'federal-rules/frcmp',
         'laws/federal',
