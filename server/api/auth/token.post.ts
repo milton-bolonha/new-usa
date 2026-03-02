@@ -1,5 +1,5 @@
 interface AuthTokenRequestBody {
-  endpoint: string
+    endpoint: string
 }
 
 import { defineEventHandler, readBody, createError } from 'h3'
@@ -7,91 +7,141 @@ import { validateOrigin, setCorsHeaders } from '../../utils/validateOrigin'
 import { generateApiToken } from '../../utils/apiTokens'
 
 export default defineEventHandler(async (event) => {
-    
+
     validateOrigin(event)
 
     setCorsHeaders(event)
 
     let body: AuthTokenRequestBody
-    
+
     console.log('=== Auth Token Request Debug ===')
     console.log('Headers:', event.node?.req?.headers)
     console.log('Method:', event.node?.req?.method)
     console.log('URL:', event.node?.req?.url)
-    
+
     try {
         console.log('Attempting to read body directly...')
         const req = event.node?.req as any
-        console.log('Request object exists:', !!req)
-        console.log('Request body type:', typeof req?.body)
-        console.log('Request body:', req?.body)
-        
-        body = undefined
-        
-        if (process.env.NODE_ENV === 'production') {
-            console.log('Production environment, using Netlify functions parsing...')
-            
-            if (req && req.body && typeof req.body.getReader === 'function') {
-                console.log('Detected Netlify ReadableStream, reading manually...')
-                const reader = req.body.getReader()
-                const decoder = new TextDecoder()
-                let result = ''
-                
-                while (true) {
-                    const { done, value } = await reader.read()
-                    if (done) break
-                    result += decoder.decode(value, { stream: true })
-                }
-                
-                console.log('Stream result:', result)
-                body = JSON.parse(result) as AuthTokenRequestBody
-            } else if (req && req.body) {
-                console.log('Direct body access in production...')
-                if (typeof req.body === 'string') {
-                    body = JSON.parse(req.body) as AuthTokenRequestBody
-                } else if (req.body instanceof Buffer) {
-                    body = JSON.parse(req.body.toString()) as AuthTokenRequestBody
-                } else {
-                    const bodyStr = JSON.stringify(req.body)
-                    body = JSON.parse(bodyStr) as AuthTokenRequestBody
-                }
-            } else {
-                throw new Error('No valid body found in Netlify functions')
-            }
-        }
-        
-        else {
-            console.log('Local development, trying readBody...')
-            try {
-                body = await readBody(event) as AuthTokenRequestBody
-                console.log('readBody succeeded:', body)
-            } catch (readBodyError) {
-                console.log('readBody failed, using fallback:', readBodyError.message)
-                
-                if (req && req.body) {
-                    if (typeof req.body === 'string') {
-                        body = JSON.parse(req.body) as AuthTokenRequestBody
-                    } else if (req.body instanceof Buffer) {
-                        body = JSON.parse(req.body.toString()) as AuthTokenRequestBody
-                    } else {
-                        body = req.body as AuthTokenRequestBody
-                    }
-                } else {
-                    const chunks = []
-                    for await (const chunk of req) {
-                        chunks.push(chunk)
-                    }
-                    const rawBody = Buffer.concat(chunks).toString()
-                    console.log('Stream body:', rawBody)
-                    body = JSON.parse(rawBody) as AuthTokenRequestBody
+
+        let parsedBody: any = undefined;
+        let rawStr = '';
+
+        // Method 1: Standard readBody() attempt
+        try {
+            if (process.env.NODE_ENV !== 'production' || !(req.body && typeof req.body.getReader === 'function')) {
+                const standardBody = await readBody(event);
+                if (standardBody && Object.keys(standardBody).length > 0) {
+                    parsedBody = standardBody;
                 }
             }
+        } catch (e) {
+            console.log('readBody failed, moving to fallback');
         }
-        
+
+        if (!parsedBody) {
+            // Method 2: Direct body access (string, Buffer, object)
+            if (req && req.body) {
+                if (typeof req.body === 'object' && !Buffer.isBuffer(req.body) && typeof req.body.getReader !== 'function') {
+                    parsedBody = req.body;
+                } else if (typeof req.body === 'string') {
+                    rawStr = req.body;
+                } else if (Buffer.isBuffer(req.body)) {
+                    rawStr = req.body.toString();
+                }
+            }
+
+            // Method 3: Stream reading with chunk concatenation
+            if (!rawStr && !parsedBody) {
+                if (process.env.NODE_ENV === 'production' && req && req.body && typeof req.body.getReader === 'function') {
+                    const reader = req.body.getReader();
+                    const decoder = new TextDecoder();
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        rawStr += decoder.decode(value, { stream: true });
+                    }
+                } else if (req) {
+                    try {
+                        const chunks = [];
+                        for await (const chunk of req) {
+                            chunks.push(chunk);
+                        }
+                        rawStr = Buffer.concat(chunks).toString();
+                    } catch (e) { }
+                }
+            }
+
+            if (!parsedBody && rawStr) {
+                try {
+                    parsedBody = JSON.parse(rawStr);
+                } catch (e) {
+                    console.log('JSON parse failed, applying resilience checks');
+
+                    // Method 4: Data cleaning (remove control characters)
+                    const cleanedStr = rawStr.replace(/[\x00-\x1F\x7F]/g, "").trim();
+                    try {
+                        if (cleanedStr) {
+                            parsedBody = JSON.parse(cleanedStr);
+                        }
+                    } catch (e2) {
+                        // Method 5: JSON extraction
+                        const jsonMatch = cleanedStr.match(/\{.*?\}/);
+                        if (jsonMatch) {
+                            try {
+                                parsedBody = JSON.parse(jsonMatch[0]);
+                            } catch (e3) { }
+                        }
+
+                        if (!parsedBody) {
+                            // Method 6: Multiple regex patterns
+                            const endpointRegex1 = /"endpoint"\s*:\s*"([^"\s}]+)"/i;
+                            const match1 = cleanedStr.match(endpointRegex1);
+                            if (match1 && match1[1]) {
+                                parsedBody = { endpoint: match1[1] };
+                            } else {
+                                const endpointRegex2 = /endpoint['"]?\s*[:=]\s*['"]?([^'"\s}]+)/i;
+                                const match2 = cleanedStr.match(endpointRegex2);
+                                if (match2 && match2[1]) {
+                                    parsedBody = { endpoint: match2[1] };
+                                }
+                            }
+                        }
+
+                        if (!parsedBody) {
+                            // Method 7: Bills-specific pattern matching
+                            if (cleanedStr.includes('congress')) {
+                                parsedBody = { endpoint: 'bills/congress' };
+                            } else if (cleanedStr.includes('city-council')) {
+                                parsedBody = { endpoint: 'bills/city-council' };
+                            } else if (cleanedStr.includes('district-court')) {
+                                parsedBody = { endpoint: 'district-court' };
+                            } else if (cleanedStr.includes('courts/')) {
+                                const courtMatch = cleanedStr.match(/courts\/\d+/);
+                                if (courtMatch) {
+                                    parsedBody = { endpoint: courtMatch[0] };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!parsedBody) {
+                // Method 8: Default fallback
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('All methods failed, using development default fallback');
+                    parsedBody = { endpoint: 'bills/congress' };
+                } else {
+                    throw new Error('No body available for parsing');
+                }
+            }
+        }
+
+        body = parsedBody as AuthTokenRequestBody;
         console.log('Final parsed body:', body)
         console.log('Body type:', typeof body)
         console.log('Body has endpoint:', body?.endpoint)
-        
+
     } catch (error: any) {
         console.log('All parsing methods failed:', error.message)
         console.log('Error stack:', error.stack)
@@ -100,7 +150,7 @@ export default defineEventHandler(async (event) => {
             statusText: 'Invalid JSON in request body'
         })
     }
-    
+
     const { endpoint } = body
 
     if (!endpoint) {
@@ -113,6 +163,7 @@ export default defineEventHandler(async (event) => {
     const allowedEndpoints = [
         'bills/congress',
         'bills/city-council',
+        'district-court',
         'courts/2',
         'courts/3',
         'courts/4',

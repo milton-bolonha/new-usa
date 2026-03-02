@@ -12,6 +12,10 @@ export default defineNuxtConfig({
         build: {
             sourcemap: false,
         },
+        server: {
+            hmr: false,
+            ws: false,
+        },
     },
     // @ts-expect-error Nuxt 4 types not fully stable
     nitro: {

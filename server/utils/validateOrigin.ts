@@ -25,10 +25,31 @@ export function validateOrigin(event: H3Event) {
     let origin = headers?.origin
     const referer = headers?.referer
 
-    if (!origin && process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development') {
         const forwardedHost = headers?.['x-forwarded-host']
         const forwardedProto = headers?.['x-forwarded-proto']
-        if (forwardedHost) {
+        const host = headers?.host
+
+        // Allow any localhost/127.0.0.1 request in development
+        if (host && (host.includes('localhost') || host.includes('127.0.0.1'))) {
+            return
+        }
+
+        // Allow requests with forwarded localhost headers
+        if (forwardedHost && (forwardedHost.includes('localhost') || forwardedHost.includes('127.0.0.1'))) {
+            return
+        }
+
+        // Allow requests with localhost origin or referer
+        if (origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+            return
+        }
+
+        if (referer && (referer.includes('localhost') || referer.includes('127.0.0.1'))) {
+            return
+        }
+
+        if (!origin && forwardedHost) {
             origin = `${forwardedProto || 'http'}://${forwardedHost}`
         }
     }

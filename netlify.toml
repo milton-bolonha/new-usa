@@ -24,6 +24,8 @@ NODE_OPTIONS = "--max-old-space-size=4096"
 # Database URL for SQLite (ponto para o arquivo criado durante o build)
 DATABASE_URL = "file:./prisma/dev.db"
 
+ALLOWED_ORIGINS = "https://nusalegal.com,https://www.nusalegal.com"
+
 # Netlify Dev (local development)
 [dev]
 port = 8888
