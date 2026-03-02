@@ -280,16 +280,19 @@
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useApiToken } from '~/composables/useApiToken';
+import { useCourtsStore } from '~/stores/courts-store'
+
+definePageMeta({
+    layout: false
+})
 
 const courtsStore = useCourtsStore();
-const { getToken } = useApiToken();
 
 const { setVolume, fetchVolume } = courtsStore;
 const { loading } = storeToRefs(courtsStore);
 
 const courtType = ref<'selection' | 'scotus' | 'district'>('selection')
-// ... other refs omitted ...
+
 const showCaseDetail = ref(false);
 const selectedCase = ref<any>(null);
 
@@ -339,12 +342,7 @@ const closeDistrictCaseModal = () => {
 const fetchDistrictCases = async () => {
     loadingDistrict.value = true
     try {
-        const token = await getToken('district-court');
-        districtCases.value = await $fetch('/api/district-court', {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
+        districtCases.value = await $fetch('/api/district-court')
     } catch (error) {
         console.error('Error fetching district court cases:', error)
     } finally {
