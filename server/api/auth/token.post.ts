@@ -8,9 +8,52 @@ import { generateApiToken } from '../../utils/apiTokens'
 
 export default defineEventHandler(async (event) => {
 
-    validateOrigin(event)
+    // #region agent log
+    {
+        const headers = event.node?.req?.headers
+        fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: `log_${Date.now()}_auth_token_entry`,
+                timestamp: Date.now(),
+                runId: 'pre-fix',
+                hypothesisId: 'H1',
+                location: 'server/api/auth/token.post.ts:9',
+                message: 'auth token handler entry',
+                data: {
+                    url: event.node?.req?.url,
+                    method: event.node?.req?.method,
+                    host: headers?.host,
+                    origin: headers?.origin,
+                    referer: headers?.referer,
+                    nodeEnv: process.env.NODE_ENV,
+                    allowedOriginsEnv: process.env.ALLOWED_ORIGINS
+                }
+            })
+        }).catch(() => { })
+    }
+    // #endregion agent log
 
+    validateOrigin(event)
+    
     setCorsHeaders(event)
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: `log_${Date.now()}_auth_token_after_origin`,
+            timestamp: Date.now(),
+            runId: 'pre-fix',
+            hypothesisId: 'H1',
+            location: 'server/api/auth/token.post.ts:27',
+            message: 'auth token after origin validation and CORS',
+            data: {}
+        })
+    }).catch(() => { })
+    // #endregion agent log
 
     let body: AuthTokenRequestBody
 
@@ -145,6 +188,26 @@ export default defineEventHandler(async (event) => {
     } catch (error: any) {
         console.log('All parsing methods failed:', error.message)
         console.log('Error stack:', error.stack)
+
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: `log_${Date.now()}_auth_token_body_parse_error`,
+                timestamp: Date.now(),
+                runId: 'pre-fix',
+                hypothesisId: 'H2',
+                location: 'server/api/auth/token.post.ts:145',
+                message: 'auth token body parsing failed',
+                data: {
+                    errorMessage: error?.message,
+                    errorName: error?.name
+                }
+            })
+        }).catch(() => { })
+        // #endregion agent log
+
         throw createError({
             status: 400,
             statusText: 'Invalid JSON in request body'
@@ -154,6 +217,22 @@ export default defineEventHandler(async (event) => {
     const { endpoint } = body
 
     if (!endpoint) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: `log_${Date.now()}_auth_token_no_endpoint`,
+                timestamp: Date.now(),
+                runId: 'pre-fix',
+                hypothesisId: 'H2',
+                location: 'server/api/auth/token.post.ts:156',
+                message: 'auth token missing endpoint in body',
+                data: {}
+            })
+        }).catch(() => { })
+        // #endregion agent log
+
         throw createError({
             status: 400,
             statusText: 'Endpoint is required'
@@ -196,6 +275,22 @@ export default defineEventHandler(async (event) => {
     ]
 
     if (!allowedEndpoints.includes(endpoint)) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: `log_${Date.now()}_auth_token_invalid_endpoint`,
+                timestamp: Date.now(),
+                runId: 'pre-fix',
+                hypothesisId: 'H3',
+                location: 'server/api/auth/token.post.ts:198',
+                message: 'auth token invalid endpoint',
+                data: { endpoint }
+            })
+        }).catch(() => { })
+        // #endregion agent log
+
         throw createError({
             status: 400,
             statusText: 'Invalid endpoint'
@@ -203,6 +298,22 @@ export default defineEventHandler(async (event) => {
     }
 
     const token = generateApiToken(endpoint)
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: `log_${Date.now()}_auth_token_success`,
+            timestamp: Date.now(),
+            runId: 'pre-fix',
+            hypothesisId: 'H3',
+            location: 'server/api/auth/token.post.ts:205',
+            message: 'auth token generated successfully',
+            data: { endpoint }
+        })
+    }).catch(() => { })
+    // #endregion agent log
 
     return {
         token,

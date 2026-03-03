@@ -20,10 +20,32 @@ function getAllowedOrigins(): string[] {
 
 export function validateOrigin(event: H3Event) {
     const allowedOrigins = getAllowedOrigins()
-
+    
     const headers = event.node?.req?.headers
     let origin = headers?.origin
     const referer = headers?.referer
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: `log_${Date.now()}_validateOrigin_entry`,
+            timestamp: Date.now(),
+            runId: 'pre-fix',
+            hypothesisId: 'H1',
+            location: 'server/utils/validateOrigin.ts:21',
+            message: 'validateOrigin entry',
+            data: {
+                host: headers?.host,
+                origin,
+                referer,
+                allowedOrigins,
+                nodeEnv: process.env.NODE_ENV
+            }
+        })
+    }).catch(() => { })
+    // #endregion agent log
 
     if (process.env.NODE_ENV === 'development') {
         const forwardedHost = headers?.['x-forwarded-host']
@@ -88,6 +110,26 @@ export function validateOrigin(event: H3Event) {
     }
 
     if (!requestOrigin) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: `log_${Date.now()}_validateOrigin_no_request_origin`,
+                timestamp: Date.now(),
+                runId: 'pre-fix',
+                hypothesisId: 'H1',
+                location: 'server/utils/validateOrigin.ts:90',
+                message: 'validateOrigin missing requestOrigin',
+                data: {
+                    origin,
+                    referer,
+                    allowedOrigins
+                }
+            })
+        }).catch(() => { })
+        // #endregion agent log
+
         throw createError({
             status: 403,
             statusText: 'Origin header required'
@@ -99,8 +141,28 @@ export function validateOrigin(event: H3Event) {
         const normalizedAllowed = allowed.replace(/\/$/, '')
         return normalizedRequestOrigin === normalizedAllowed
     })
-
+    
     if (!isAllowed) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: `log_${Date.now()}_validateOrigin_not_allowed`,
+                timestamp: Date.now(),
+                runId: 'pre-fix',
+                hypothesisId: 'H1',
+                location: 'server/utils/validateOrigin.ts:103',
+                message: 'validateOrigin origin not allowed',
+                data: {
+                    requestOrigin,
+                    normalizedRequestOrigin,
+                    allowedOrigins
+                }
+            })
+        }).catch(() => { })
+        // #endregion agent log
+
         throw createError({
             status: 403,
             statusText: `Request not allowed`
