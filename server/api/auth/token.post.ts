@@ -2,7 +2,7 @@ interface AuthTokenRequestBody {
     endpoint: string
 }
 
-import { defineEventHandler, readBody, readRawBody, createError } from 'h3'
+import { defineEventHandler, readBody, readRawBody, createError, getHeader } from 'h3'
 import { validateOrigin, setCorsHeaders } from '../../utils/validateOrigin'
 import { generateApiToken } from '../../utils/apiTokens'
 
@@ -363,6 +363,15 @@ export default defineEventHandler(async (event) => {
             name: err?.name,
             stack: err?.stack,
         })
+        // Debug mode: return error in response body when X-Debug: 1
+        if (getHeader(event, 'x-debug') === '1') {
+            return {
+                _debug: true,
+                error: err?.message,
+                name: err?.name,
+                stack: err?.stack?.split?.('\n')?.slice?.(0, 15),
+            }
+        }
         throw err
     }
 })

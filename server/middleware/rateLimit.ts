@@ -1,5 +1,5 @@
 import { defaultRateLimiter, strictRateLimiter } from '../utils/rateLimit';
-import { eventHandler, getRequestURL } from 'h3';
+import { eventHandler, getRequestURL, getHeader } from 'h3';
 
 export default eventHandler(async (event) => {
   try {
@@ -63,7 +63,21 @@ export default eventHandler(async (event) => {
       await defaultRateLimiter.middleware()(event);
       return;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Rate limiting middleware error:', error);
+    // Debug mode: return error in response when X-Debug: 1
+    if (getHeader(event, 'x-debug') === '1' && event.node?.res) {
+      event.node.res.setHeader('Content-Type', 'application/json');
+      event.node.res.statusCode = 200;
+      event.node.res.end(JSON.stringify({
+        _debug: true,
+        from: 'rateLimit',
+        error: error?.message,
+        name: error?.name,
+        stack: error?.stack?.split?.('\n')?.slice?.(0, 15),
+      }));
+      return;
+    }
+    throw error;
   }
 });
