@@ -2,7 +2,7 @@ interface AuthTokenRequestBody {
     endpoint: string
 }
 
-import { defineEventHandler, readBody, createError } from 'h3'
+import { defineEventHandler, readBody, readRawBody, createError } from 'h3'
 import { validateOrigin, setCorsHeaders } from '../../utils/validateOrigin'
 import { generateApiToken } from '../../utils/apiTokens'
 
@@ -11,15 +11,17 @@ export default defineEventHandler(async (event) => {
         // #region agent log
         {
             const headers = event.node?.req?.headers
+            const req = event.node?.req as any
             fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
                 body: JSON.stringify({
+                    sessionId: 'eb4175',
                     id: `log_${Date.now()}_auth_token_entry`,
                     timestamp: Date.now(),
                     runId: 'pre-fix',
                     hypothesisId: 'H1',
-                    location: 'server/api/auth/token.post.ts:9',
+                    location: 'server/api/auth/token.post.ts:14',
                     message: 'auth token handler entry',
                     data: {
                         url: event.node?.req?.url,
@@ -28,7 +30,10 @@ export default defineEventHandler(async (event) => {
                         origin: headers?.origin,
                         referer: headers?.referer,
                         nodeEnv: process.env.NODE_ENV,
-                        allowedOriginsEnv: process.env.ALLOWED_ORIGINS
+                        hasNode: !!event.node,
+                        hasReq: !!req,
+                        bodyType: req?.body != null ? typeof req.body : 'undefined',
+                        hasGetReader: typeof req?.body?.getReader === 'function',
                     }
                 })
             }).catch(() => { })
@@ -42,8 +47,9 @@ export default defineEventHandler(async (event) => {
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
             body: JSON.stringify({
+                sessionId: 'eb4175',
                 id: `log_${Date.now()}_auth_token_after_origin`,
                 timestamp: Date.now(),
                 runId: 'pre-fix',
@@ -69,19 +75,47 @@ export default defineEventHandler(async (event) => {
             let parsedBody: any = undefined;
             let rawStr = '';
 
-            // Method 1: Standard readBody() attempt
+            // Method 0: readRawBody (works in Netlify/serverless when readBody fails)
             try {
-                if (process.env.NODE_ENV !== 'production' || !(req.body && typeof req.body.getReader === 'function')) {
-                    const standardBody = await readBody(event);
-                    if (standardBody && Object.keys(standardBody).length > 0) {
-                        parsedBody = standardBody;
-                    }
+                const raw = await readRawBody(event);
+                if (raw && typeof raw === 'string') {
+                    rawStr = raw;
+                    parsedBody = JSON.parse(raw);
                 }
-            } catch (e) {
-                console.log('readBody failed, moving to fallback');
+            } catch (_e0) {
+                // #region agent log
+                fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
+                    body: JSON.stringify({
+                        sessionId: 'eb4175',
+                        id: `log_${Date.now()}_readRawBody_failed`,
+                        timestamp: Date.now(),
+                        runId: 'pre-fix',
+                        hypothesisId: 'H3',
+                        location: 'server/api/auth/token.post.ts:78',
+                        message: 'readRawBody failed',
+                        data: { err: String((_e0 as Error)?.message) }
+                    })
+                }).catch(() => { })
+                // #endregion agent log
             }
 
+            // Method 1: Standard readBody() attempt (if raw not yet available)
             if (!parsedBody) {
+                try {
+                    if (process.env.NODE_ENV !== 'production' || !(req?.body && typeof req.body.getReader === 'function')) {
+                        const standardBody = await readBody(event);
+                        if (standardBody && Object.keys(standardBody).length > 0) {
+                            parsedBody = standardBody;
+                        }
+                    }
+                } catch (e) {
+                    console.log('readBody failed, moving to fallback');
+                }
+            }
+
+            if (!parsedBody && !rawStr) {
                 // Method 2: Direct body access (string, Buffer, object)
                 if (req && req.body) {
                     if (typeof req.body === 'object' && !Buffer.isBuffer(req.body) && typeof req.body.getReader !== 'function') {
@@ -192,8 +226,9 @@ export default defineEventHandler(async (event) => {
             // #region agent log
             fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
                 body: JSON.stringify({
+                    sessionId: 'eb4175',
                     id: `log_${Date.now()}_auth_token_body_parse_error`,
                     timestamp: Date.now(),
                     runId: 'pre-fix',
@@ -220,8 +255,9 @@ export default defineEventHandler(async (event) => {
             // #region agent log
             fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
                 body: JSON.stringify({
+                    sessionId: 'eb4175',
                     id: `log_${Date.now()}_auth_token_no_endpoint`,
                     timestamp: Date.now(),
                     runId: 'pre-fix',
@@ -278,8 +314,9 @@ export default defineEventHandler(async (event) => {
             // #region agent log
             fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
                 body: JSON.stringify({
+                    sessionId: 'eb4175',
                     id: `log_${Date.now()}_auth_token_invalid_endpoint`,
                     timestamp: Date.now(),
                     runId: 'pre-fix',
@@ -302,8 +339,9 @@ export default defineEventHandler(async (event) => {
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
             body: JSON.stringify({
+                sessionId: 'eb4175',
                 id: `log_${Date.now()}_auth_token_success`,
                 timestamp: Date.now(),
                 runId: 'pre-fix',

@@ -24,7 +24,39 @@ export default eventHandler(async (event) => {
     }
 
     if (path.startsWith('/api/auth') || path.includes('/token')) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
+        body: JSON.stringify({
+          sessionId: 'eb4175',
+          id: `log_${Date.now()}_ratelimit_before_strict`,
+          timestamp: Date.now(),
+          runId: 'pre-fix',
+          hypothesisId: 'H1',
+          location: 'server/middleware/rateLimit.ts:27',
+          message: 'rate limit before strictRateLimiter for /api/auth',
+          data: { path, hasNode: !!event.node, hasReq: !!event.node?.req }
+        })
+      }).catch(() => {});
+      // #endregion agent log
       await strictRateLimiter.middleware()(event);
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
+        body: JSON.stringify({
+          sessionId: 'eb4175',
+          id: `log_${Date.now()}_ratelimit_after_strict`,
+          timestamp: Date.now(),
+          runId: 'pre-fix',
+          hypothesisId: 'H1',
+          location: 'server/middleware/rateLimit.ts:42',
+          message: 'rate limit after strictRateLimiter (passed)',
+          data: {}
+        })
+      }).catch(() => {});
+      // #endregion agent log
       return;
     }
     if (path.startsWith('/api')) {

@@ -28,8 +28,9 @@ export function validateOrigin(event: H3Event) {
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
         body: JSON.stringify({
+            sessionId: 'eb4175',
             id: `log_${Date.now()}_validateOrigin_entry`,
             timestamp: Date.now(),
             runId: 'pre-fix',
@@ -113,8 +114,9 @@ export function validateOrigin(event: H3Event) {
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
             body: JSON.stringify({
+                sessionId: 'eb4175',
                 id: `log_${Date.now()}_validateOrigin_no_request_origin`,
                 timestamp: Date.now(),
                 runId: 'pre-fix',
@@ -146,8 +148,9 @@ export function validateOrigin(event: H3Event) {
         // #region agent log
         fetch('http://127.0.0.1:7243/ingest/40d307ea-752f-424c-a179-ca112dd9b564', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'eb4175' },
             body: JSON.stringify({
+                sessionId: 'eb4175',
                 id: `log_${Date.now()}_validateOrigin_not_allowed`,
                 timestamp: Date.now(),
                 runId: 'pre-fix',
