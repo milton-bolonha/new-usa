@@ -33,9 +33,9 @@ const trelloBoards = {
 }
 
 const boardListNames: Record<string, string> = {
-  'BtAXade2': 'Blacklisted',
+  BtAXade2: 'Blacklisted',
   '2w4zaqFS': 'Bank Bans',
-  'exfhKJtm': 'AoS Players',
+  exfhKJtm: 'AoS Players',
   '1sH1ZM3A': 'Capitol Banned',
   '1OQj0CTk': 'Prison Bans'
 }
@@ -61,7 +61,9 @@ async function getBoardLists(boardId: string, key: string, token: string) {
 async function getBoardCards(boardId: string, key: string, token: string): Promise<TrelloCard[]> {
   const lists = await getBoardLists(boardId, key, token)
   const targetListName = boardListNames[boardId]
-  const targetList = lists.find((list: any) => list.name === targetListName)
+  const targetList = lists.find(
+    (list: { id: string; name: string }) => list.name === targetListName
+  )
 
   if (!targetList) {
     return []
@@ -82,7 +84,7 @@ async function checkBoardCategory(
 
   for (const boardId of boards) {
     try {
-      const boardName = await getBoardName(boardId, key, token)
+      const _boardName = await getBoardName(boardId, key, token)
       const cards = await getBoardCards(boardId, key, token)
 
       const matches = cards.filter(card => {
@@ -91,15 +93,20 @@ async function checkBoardCategory(
       })
 
       const listName = boardListNames[boardId] || 'Unknown List'
-      results.push(...matches.map(card => ({
-        board: boardId,
-        card: card.name,
-        list: listName,
-        url: card.url,
-        description: card.desc
-      })))
-    } catch (error: any) {
-      console.error(`Error accessing board ${boardId}:`, error.response?.statusText || error.message)
+      results.push(
+        ...matches.map(card => ({
+          board: boardId,
+          card: card.name,
+          list: listName,
+          url: card.url,
+          description: card.desc
+        }))
+      )
+    } catch (error: unknown) {
+      console.error(
+        `Error accessing board ${boardId}:`,
+        axios.isAxiosError(error) ? error.response?.statusText || error.message : String(error)
+      )
     }
   }
 

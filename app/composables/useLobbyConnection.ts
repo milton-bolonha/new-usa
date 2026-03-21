@@ -13,7 +13,7 @@ export interface LobbyPlayer {
 export interface LobbyState {
   lobbyCode: string
   selectedCaseType: 'criminal' | 'civil' | null
-  selectedCase: any
+  selectedCase: Record<string, unknown> | null
   players: LobbyPlayer[]
   roles: { [key: string]: string | null }
 }
@@ -21,8 +21,8 @@ export interface LobbyState {
 export function useLobbyConnection() {
   const { success, error, warning, info } = useToast()
 
-  let ably: any | null = null
-  let channel: any | null = null
+  let ably: Ably.Realtime | null = null
+  let channel: ReturnType<Ably.Realtime['channels']['get']> | null = null
   let clientId: string | null = null
 
   const isConnected = ref(false)
@@ -30,6 +30,16 @@ export function useLobbyConnection() {
   const isReconnecting = ref(false)
   const reconnectAttempts = ref(0)
   const reconnectCountdown = ref(10)
+
+  const incomingObjection = ref<{
+    id: string
+    type: string
+    reason: string
+    madeBy: string
+    ruling: string | null
+  } | null>(null)
+  const incomingRuling = ref<{ objectionId: string; sustained: boolean } | null>(null)
+  const incomingVote = ref<{ playerId: string; vote: 'guilty' | 'not-guilty' } | null>(null)
 
   let heartbeatInterval: NodeJS.Timeout | null = null
   let activityCheckInterval: NodeJS.Timeout | null = null
@@ -53,9 +63,8 @@ export function useLobbyConnection() {
 
   async function connect(lobbyCode: string, playerName: string, isLeader: boolean) {
     isConnecting.value = true
-    
+
     try {
-      
       ably = new Ably.Realtime({ authUrl: '/api/ably-auth' })
       channel = ably.channels.get(`lobby:${lobbyCode}`)
 
@@ -67,16 +76,18 @@ export function useLobbyConnection() {
         ably.connection.on('failed', reject)
         setTimeout(() => reject(new Error('Connection timeout')), 10000)
       })
-      
+
       lobbyState.value.lobbyCode = lobbyCode
-      lobbyState.value.players = [{
-        id: clientId || 'local',
-        name: playerName,
-        role: null,
-        isLeader,
-        lastSeen: Date.now()
-      }]
-      
+      lobbyState.value.players = [
+        {
+          id: clientId || 'local',
+          name: playerName,
+          role: null,
+          isLeader,
+          lastSeen: Date.now()
+        }
+      ]
+
       isConnected.value = true
       isConnecting.value = false
 
@@ -86,6 +97,9 @@ export function useLobbyConnection() {
       channel.subscribe('case-selected', onCaseSelected)
       channel.subscribe('trial-start', onTrialStart)
       channel.subscribe('heartbeat', onHeartbeat)
+      channel.subscribe('objection-raised', onObjectionRaised)
+      channel.subscribe('objection-ruled', onObjectionRuled)
+      channel.subscribe('vote-cast', onVoteCast)
 
       await channel.publish('player-joined', {
         id: clientId,
@@ -97,9 +111,9 @@ export function useLobbyConnection() {
       startHeartbeat()
 
       startActivityMonitoring()
-      
+
       success('Connected to lobby')
-      
+
       return true
     } catch (err) {
       console.error('Failed to connect to lobby:', err)
@@ -125,12 +139,12 @@ export function useLobbyConnection() {
       channel.unsubscribe()
       channel = null
     }
-    
+
     if (ably) {
       ably.close()
       ably = null
     }
-    
+
     clientId = null
     isConnected.value = false
     lobbyState.value = {
@@ -140,13 +154,13 @@ export function useLobbyConnection() {
       players: [],
       roles: {}
     }
-    
+
     info('Disconnected from lobby')
   }
 
   function startHeartbeat() {
     if (heartbeatInterval) return
-    
+
     heartbeatInterval = setInterval(() => {
       if (!isConnected.value) return
 
@@ -173,26 +187,26 @@ export function useLobbyConnection() {
 
   function startActivityMonitoring() {
     if (activityCheckInterval) return
-    
+
     activityCheckInterval = setInterval(() => {
       if (!isConnected.value) return
-      
+
       const now = Date.now()
-      const TIMEOUT = 15000 
+      const TIMEOUT = 15000
 
       lobbyState.value.players = lobbyState.value.players.filter(player => {
         const isInactive = now - player.lastSeen > TIMEOUT
-        
+
         if (isInactive && player.id !== clientId) {
           warning(`${player.name} disconnected (timeout)`)
 
           if (player.role) {
             lobbyState.value.roles[player.role] = null
           }
-          
+
           return false
         }
-        
+
         return true
       })
     }, 5000)
@@ -207,39 +221,36 @@ export function useLobbyConnection() {
 
   async function attemptReconnect() {
     if (isReconnecting.value || reconnectAttempts.value >= 3) return
-    
+
     isReconnecting.value = true
     reconnectAttempts.value++
     reconnectCountdown.value = 10
-    
+
     info(`Reconnecting... (${reconnectAttempts.value}/3)`)
 
     reconnectCountdownInterval = setInterval(() => {
       reconnectCountdown.value--
-      
+
       if (reconnectCountdown.value <= 0) {
         stopReconnection()
         isReconnecting.value = false
         error('Reconnection failed - returning to lobby selection')
-        
       }
     }, 1000)
 
     reconnectTimeout = setTimeout(async () => {
-      const success = await connect(
-        lobbyState.value.lobbyCode,
-        'You',
-        false
-      )
-      
+      const success = await connect(lobbyState.value.lobbyCode, 'You', false)
+
       if (success) {
         isReconnecting.value = false
         reconnectAttempts.value = 0
         stopReconnection()
       } else if (reconnectAttempts.value < 3) {
-        
         isReconnecting.value = false
-        setTimeout(() => attemptReconnect().catch(err => console.error('Reconnect attempt failed:', err)), 2000)
+        setTimeout(
+          () => attemptReconnect().catch(err => console.error('Reconnect attempt failed:', err)),
+          2000
+        )
       } else {
         isReconnecting.value = false
         error('Failed to reconnect after 3 attempts')
@@ -252,7 +263,7 @@ export function useLobbyConnection() {
       clearTimeout(reconnectTimeout)
       reconnectTimeout = null
     }
-    
+
     if (reconnectCountdownInterval) {
       clearInterval(reconnectCountdownInterval)
       reconnectCountdownInterval = null
@@ -265,11 +276,11 @@ export function useLobbyConnection() {
     attemptReconnect().catch(err => console.error('Reconnect failed:', err))
   }
 
-  function onPlayerJoined(message: any) {
+  function onPlayerJoined(message: Ably.Message) {
     const { id, name, isLeader } = message.data
 
     if (id === clientId) return
-    
+
     const existingPlayer = lobbyState.value.players.find(p => p.id === id)
     if (!existingPlayer) {
       lobbyState.value.players.push({
@@ -282,10 +293,10 @@ export function useLobbyConnection() {
       info(`${name} joined the lobby`)
     }
   }
-  
-  function onPlayerLeft(message: any) {
+
+  function onPlayerLeft(message: Ably.Message) {
     const { id } = message.data
-    
+
     const player = lobbyState.value.players.find(p => p.id === id)
     if (player) {
       lobbyState.value.players = lobbyState.value.players.filter(p => p.id !== id)
@@ -293,60 +304,101 @@ export function useLobbyConnection() {
       if (player.role) {
         lobbyState.value.roles[player.role] = null
       }
-      
+
       warning(`${player.name} left the lobby`)
     }
   }
-  
-  function onRoleClaimed(message: any) {
+
+  function onRoleClaimed(message: Ably.Message) {
     const { playerId, playerName, roleId, roleName } = message.data
 
     const player = lobbyState.value.players.find(p => p.id === playerId)
     if (player) {
-      
       if (player.role) {
         lobbyState.value.roles[player.role] = null
       }
-      
+
       player.role = roleName
       lobbyState.value.roles[roleId] = playerName
-      
+
       if (playerId !== clientId) {
         info(`${playerName} claimed ${roleName}`)
       }
     }
   }
-  
-  function onCaseSelected(message: any) {
-    const { case: selectedCase } = message.data
+
+  function onCaseSelected(message: Ably.Message) {
+    const { case: selectedCase } = message.data as { case: Record<string, unknown> }
     lobbyState.value.selectedCase = selectedCase
-    
+
     if (message.clientId !== clientId) {
       info(`Case selected: ${selectedCase.title}`)
     }
   }
-  
-  function onTrialStart(message: any) {
 
+  function onTrialStart(message: Ably.Message) {
     if (message.clientId !== clientId) {
       info('Trial is starting!')
     }
   }
-  
-  function onHeartbeat(message: any) {
-    const { playerId, timestamp } = message.data
-    
+
+  function onHeartbeat(message: Ably.Message) {
+    const { playerId, timestamp } = message.data as { playerId: string; timestamp: number }
+
     const player = lobbyState.value.players.find(p => p.id === playerId)
     if (player) {
       player.lastSeen = timestamp
     }
   }
 
+  function onObjectionRaised(message: Ably.Message) {
+    if (message.clientId === clientId) return
+    incomingObjection.value = message.data
+    info(`Objection raised: ${message.data.type}`)
+  }
+
+  function onObjectionRuled(message: Ably.Message) {
+    if (message.clientId === clientId) return
+    incomingRuling.value = {
+      objectionId: message.data.objectionId,
+      sustained: message.data.sustained
+    }
+    info(`Objection ${message.data.sustained ? 'sustained' : 'overruled'}`)
+  }
+
+  function onVoteCast(message: Ably.Message) {
+    if (message.clientId === clientId) return
+    incomingVote.value = { playerId: message.data.playerId, vote: message.data.vote }
+    info(`${message.data.playerName} cast a vote`)
+  }
+
+  function sendObjection(objection: {
+    id: string
+    type: string
+    reason: string
+    madeBy: string
+    ruling: null
+  }) {
+    if (channel && clientId) {
+      channel.publish('objection-raised', objection)
+    }
+  }
+
+  function broadcastRuling(objectionId: string, sustained: boolean) {
+    if (channel && clientId) {
+      channel.publish('objection-ruled', { objectionId, sustained })
+    }
+  }
+
+  function broadcastVote(vote: 'guilty' | 'not-guilty', playerName: string) {
+    if (channel && clientId) {
+      channel.publish('vote-cast', { playerId: clientId, playerName, vote })
+    }
+  }
+
   function claimRole(roleId: string, roleName: string) {
-    
     const localPlayer = lobbyState.value.players.find(p => p.id === clientId)
     if (localPlayer) {
-      
       if (localPlayer.role) {
         lobbyState.value.roles[localPlayer.role] = null
       }
@@ -365,7 +417,7 @@ export function useLobbyConnection() {
     }
   }
 
-  function selectCase(caseItem: any) {
+  function selectCase(caseItem: Record<string, unknown>) {
     lobbyState.value.selectedCase = caseItem
 
     if (channel) {
@@ -376,7 +428,6 @@ export function useLobbyConnection() {
   }
 
   function startTrial() {
-    
     if (channel) {
       channel.publish('trial-start', {
         case: lobbyState.value.selectedCase,
@@ -384,7 +435,7 @@ export function useLobbyConnection() {
         timestamp: Date.now()
       })
     }
-    
+
     return {
       case: lobbyState.value.selectedCase,
       roles: lobbyState.value.roles
@@ -394,9 +445,8 @@ export function useLobbyConnection() {
   onUnmounted(() => {
     disconnect()
   })
-  
+
   return {
-    
     isConnected,
     isConnecting,
     isReconnecting,
@@ -404,12 +454,18 @@ export function useLobbyConnection() {
     reconnectCountdown,
     connectionStatus,
     lobbyState,
+    incomingObjection,
+    incomingRuling,
+    incomingVote,
 
     connect,
     disconnect,
     claimRole,
     selectCase,
     startTrial,
+    sendObjection,
+    broadcastRuling,
+    broadcastVote,
     onConnectionLost,
     attemptReconnect
   }
