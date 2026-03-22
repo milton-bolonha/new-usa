@@ -62,13 +62,13 @@ if (fs.existsSync(nitropackCachePath)) {
   let content = fs.readFileSync(nitropackCachePath, 'utf8')
 
   content = content.replace(
-    /import \{\s*defineEventHandler,\s*fetchWithEvent,\s*handleCacheHeaders,\s*isEvent,\s*splitCookiesString\s*\} from "h3";/,
-    'import { defineEventHandler, fetchWithEvent, handleCacheHeaders, isEvent } from "h3";'
+    /^.*import \{\s*defineEventHandler,\s*fetchWithEvent,\s*handleCacheHeaders,\s*isEvent,\s*splitCookiesString\s*\} from "h3";.*$/gm,
+    'import { defineEventHandler, fetchWithEvent, handleCacheHeaders, isEvent } from "h3";\nimport { splitSetCookieString as splitCookiesString } from "cookie-es";'
   )
 
   content = content.replace(
-    /import \{\s*createEvent,\s*defineEventHandler,\s*fetchWithEvent,\s*handleCacheHeaders,\s*isEvent,\s*splitCookiesString\s*\} from "h3";/,
-    'import { defineEventHandler, fetchWithEvent, handleCacheHeaders, isEvent } from "h3";'
+    /^.*import \{\s*createEvent,\s*defineEventHandler,\s*fetchWithEvent,\s*handleCacheHeaders,\s*isEvent,\s*splitCookiesString\s*\} from "h3";.*$/gm,
+    'import { defineEventHandler, fetchWithEvent, handleCacheHeaders, isEvent } from "h3";\nimport { splitSetCookieString as splitCookiesString } from "cookie-es";'
   )
 
   fs.writeFileSync(nitropackCachePath, content)
@@ -79,8 +79,8 @@ if (fs.existsSync(nitropackUtilsPath)) {
   let content = fs.readFileSync(nitropackUtilsPath, 'utf8')
 
   content = content.replace(
-    /import \{ splitCookiesString \} from "h3";/,
-    '// import { splitCookiesString } from "h3"; // Removed - not available in h3 v2'
+    /^.*import \{ splitCookiesString \} from "h3";.*$/gm,
+    'import { splitSetCookieString as splitCookiesString } from "cookie-es";'
   )
 
   fs.writeFileSync(nitropackUtilsPath, content)
@@ -148,27 +148,70 @@ function fixH3ImportsInDirectory(dirPath) {
         }
       }
 
-      if (content.includes('splitCookiesString') && content.includes('from "h3"')) {
-        const originalContent = content
-        content = content.replace(
-          /import \{([^}]*)splitCookiesString,([^}]*)\} from "h3";/g,
-          (match, before, after) => {
-            const cleanBefore = before.replace(/\s*,\s*$/, '').trim()
-            const cleanAfter = after.replace(/^\s*,\s*/, '').trim()
-            const imports = [cleanBefore, cleanAfter].filter(Boolean).join(', ')
-            return `import { ${imports} } from "h3";`
-          }
+      if (content.includes('splitCookiesString')) {
+        const hasImport = content.includes(
+          'import { splitSetCookieString as splitCookiesString } from "cookie-es"'
         )
+        const hasDefinition =
+          /\bfunction splitCookiesString\b/.test(content) ||
+          /\bconst splitCookiesString\b/.test(content)
 
-        content = content.replace(
-          /import \{ splitCookiesString \} from "h3";/g,
-          '// import { splitCookiesString } from "h3"; // Removed - not available in h3 v2'
-        )
+        if (!hasImport && !hasDefinition) {
+          // Remove from h3 if it exists there (as an import)
+          content = content.replace(
+            /import \{([^}]*)splitCookiesString,([^}]*)\} from "h3";/g,
+            'import { $1 $2 } from "h3";'
+          )
+          content = content
+            .replace(/,\s*,/g, ',')
+            .replace(/\{\s*,/g, '{')
+            .replace(/,\s*\}/g, '}')
+            .replace(/import \{\s*\} from "h3";\n?/g, '')
 
-        if (content !== originalContent) {
-          fs.writeFileSync(fullPath, content)
-          console.log(`Fixed splitCookiesString import in ${fullPath}`)
+          // Add to cookie-es
+          content =
+            `import { splitSetCookieString as splitCookiesString } from "cookie-es";\n` + content
+        } else if (hasImport && hasDefinition) {
+          // Remove redundant import
+          content = content.replace(
+            'import { splitSetCookieString as splitCookiesString } from "cookie-es";\n',
+            ''
+          )
+          console.log(`Removed redundant splitCookiesString import from ${fullPath}`)
         }
+      }
+
+      if (
+        content.includes('createEvent') &&
+        !content.includes('import { createEvent } from "h3"')
+      ) {
+        const hasDefinition =
+          /\bfunction createEvent\b/.test(content) || /\bconst createEvent\b/.test(content)
+        const hasPolyfill = content.includes(
+          'const createEvent = (req, res) => new H3Event(req, res);'
+        )
+
+        if (!hasDefinition && !hasPolyfill) {
+          content = content.replace(/import \{([^}]*)\} from "h3";/g, (match, imports) => {
+            if (!imports.includes('H3Event')) {
+              return `import { ${imports.trim()}, H3Event } from "h3";`
+            }
+            return match
+          })
+          content = content + '\nconst createEvent = (req, res) => new H3Event(req, res);\n'
+        } else if (hasDefinition && hasPolyfill) {
+          // Remove redundant polyfill
+          content = content.replace(
+            '\nconst createEvent = (req, res) => new H3Event(req, res);\n',
+            ''
+          )
+          console.log(`Removed redundant createEvent polyfill from ${fullPath}`)
+        }
+      }
+
+      if (content !== fs.readFileSync(fullPath, 'utf8')) {
+        fs.writeFileSync(fullPath, content)
+        console.log(`Updated ${fullPath}`)
       }
     }
   }
@@ -182,7 +225,7 @@ if (isCI) {
 } else {
   console.log('Running nuxt prepare...')
   try {
-    execSync('nuxt prepare', { stdio: 'inherit' })
+    execSync('npx nuxt prepare', { stdio: 'inherit' })
     console.log('Nuxt prepare completed successfully')
   } catch (error) {
     console.error('Nuxt prepare failed:', error.message)
