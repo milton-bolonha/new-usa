@@ -35,7 +35,7 @@ const initThree = () => {
   const width = container.value.clientWidth
   const height = container.value.clientHeight
   camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-  camera.position.z = 2.2
+  camera.position.z = 1
 
   // 3. Renderer
   renderer = new THREE.WebGLRenderer({
@@ -48,7 +48,7 @@ const initThree = () => {
   renderer.setClearColor(0x000000, 0)
 
   // 4. Lights
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.0)
+  const ambientLight = new THREE.AmbientLight(0xffffff, 2.0)
   scene.add(ambientLight)
 
   const sunLight = new THREE.DirectionalLight(0xffffff, 1.4)
