@@ -207,6 +207,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useApiToken } from '~/composables/useApiToken'
 
 definePageMeta({
   title: 'Statistics',
@@ -245,6 +246,9 @@ const mostActiveDepts = ref([])
 
 onMounted(async () => {
   try {
+    const { getToken } = useApiToken()
+    const token = await getToken('statistics')
+
     const data = await $fetch<{
       caseStats: {
         totalCases: number
@@ -266,7 +270,11 @@ onMounted(async () => {
       topDefense: unknown[]
       topJudges: unknown[]
       mostActiveDepts: unknown[]
-    }>('/api/statistics')
+    }>('/api/statistics', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
 
     caseStats.value = data.caseStats
     topCharges.value = data.topCharges

@@ -113,6 +113,9 @@ export const validationSchemas = {
       'resources/vips',
       'news/index',
       'news/slug',
+      'docal/businesses',
+      'congress/members',
+      'congress/former-members',
       'statistics'
     ])
   }),
